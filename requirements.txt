@@ -1,7 +1,6 @@
 fastapi
 uvicorn
 pillow
-torch
 torchvision
 onnxruntime
 numpy
