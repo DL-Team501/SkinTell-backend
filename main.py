@@ -1,12 +1,10 @@
 import io
 
+import uvicorn
 from PIL import Image
-from PIL.Image import Image
-
 from fastapi import FastAPI, UploadFile, File
-from starlette.responses import JSONResponse
 
-from models.skin_analysis import get_skin_analysis
+from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
 
@@ -21,6 +19,9 @@ async def skin_analysis(file: UploadFile = File(...)):
     # Read the image file
     image: Image = Image.open(io.BytesIO(await file.read()))
 
-    class_idx, class_label = get_skin_analysis(image)
+    class_label = get_skin_analysis(image)
 
-    return JSONResponse(content={"class_id": class_idx, "class_label": class_label})
+    return class_label
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="127.0.0.1", port=8080)
