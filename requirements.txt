@@ -6,3 +6,5 @@ onnxruntime
 numpy
 requests
 python-dotenv
+easyocr
+Pillow
