@@ -14,6 +14,14 @@ import easyocr
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    # allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["Access-Control-Allow-Origin"]
+)
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
 @app.get("/")
@@ -34,11 +42,11 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 
         # Use easyocr to read text from the image bytes
         result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
-        
-        # Combine the text results
-        text = " ".join(result)        
 
-        print(text)        
+        # Combine the text results
+        text = " ".join(result)
+
+        print(text)
         # class_idx, class_label = get_skin_analysis_by_ingredients(text)
 
         return JSONResponse(content={"class_id": 1, "class_label": "ala"})
@@ -59,10 +67,3 @@ if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8001)
 
 # Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
