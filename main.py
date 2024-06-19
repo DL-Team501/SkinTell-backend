@@ -16,12 +16,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    # allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["Access-Control-Allow-Origin"]
 )
+
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
 @app.get("/")
@@ -65,5 +64,3 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8001)
-
-# Enable CORS
