@@ -1,5 +1,6 @@
 fastapi~=0.111.0
 uvicorn
+easyocr
 pillow~=10.3.0
 torchvision~=0.18.1
 onnxruntime~=1.17.3
