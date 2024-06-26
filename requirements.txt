@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pillow
+torchvision
+onnxruntime
+numpy
+requests
+python-dotenv
