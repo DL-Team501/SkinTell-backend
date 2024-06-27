@@ -9,6 +9,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from starlette.responses import JSONResponse
 import easyocr
 
+from models.ingredients_analysis import get_ingredients_analysis
 # from models.skin_analysis import get_skin_analysis
 # from models.skin_analysis_by_ingredients import get_skin_analysis_by_ingredients
 
@@ -16,9 +17,11 @@ app = FastAPI()
 
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
+
 @app.get("/")
 def read_root():
     return {"message": "SkinTell Backend Is Running!"}
+
 
 @app.post("/ingredients-list")
 async def extract_text_from_image(file: UploadFile = File(...)):
@@ -36,10 +39,11 @@ async def extract_text_from_image(file: UploadFile = File(...)):
         result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
         
         # Combine the text results
-        text = " ".join(result)        
+        text = " ".join(result)
+        print(text)
 
-        print(text)        
-        # class_idx, class_label = get_skin_analysis_by_ingredients(text)
+        predicted_skin_types = get_ingredients_analysis(text)
+        print(predicted_skin_types)
 
         return JSONResponse(content={"class_id": 1, "class_label": "ala"})
     except Exception as e:

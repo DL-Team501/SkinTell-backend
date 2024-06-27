@@ -1,16 +1,12 @@
-import torch
-import re
+import os
 import math
+import re
+import torch
 import gdown
-import onnx
 import json
 from typing import List, Dict
 
-from utils.load_model import get_onnx_model
-
-
-def to_numpy(tensor):
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+from utils.load_model import get_onnx_model, to_numpy
 
 
 def clean_ingredients(text: str) -> List[str]:
@@ -58,14 +54,15 @@ def create_ingredients_vector(ingredient_list: List[str], ingredient_index_dict:
     return torch.tensor(ingredient_list_indexes, dtype=torch.float32)
 
 
-def apply_positional_encoding(ingredients_vector, ingredient_dim=1):
-    """
+def apply_positional_encoding(ingredients_vector: torch.Tensor, ingredient_dim: int = 1) -> torch.Tensor:
+    """Adds positional encoding to a vector representing a sequence of ingredients.
 
     Args:
-        ingredients_vector:
-        ingredient_dim:
+        ingredients_vector: ingredients vector of indexes (each ingredient has index)
+        ingredient_dim: vector dimensions of each ingredient
 
     Returns:
+        Ingredients vector of the same shape as the input, with positional encoding added.
 
     """
     max_ingredients_number = len(ingredients_vector)
@@ -79,18 +76,25 @@ def apply_positional_encoding(ingredients_vector, ingredient_dim=1):
     return ingredients_vector + pe
 
 
-def get_ingredients_analysis(ingredients_text, ingredient_vector_len, ingredient_index_dict, model):
-    """
+def get_ingredients_analysis(ingredients_text):
+    """Predicts skin type suitability based on products ingredients text
 
     Args:
-        ingredients_text:
-        ingredient_vector_len:
-        ingredient_index_dict:
-        model:
+        ingredients_text: ingredients list extracted from some skincare product
 
     Returns:
+        The predicted suitable skit types
 
     """
+    model_file_name, ingredients_dict_file_name, ingredients_vector_len_file_name = download_model_files()
+    model = get_onnx_model(model_file_name)
+
+    with open(ingredients_dict_file_name, 'r', encoding='utf-8') as f:
+        ingredient_index_dict = json.load(f)
+
+    with open(ingredients_vector_len_file_name, 'r', encoding='utf-8') as f:
+        ingredient_vector_len = json.load(f)["ingredients_vector_len"]
+
     clean_ingredients_list = clean_ingredients(ingredients_text)
     indexed_ingredients = create_ingredients_vector(clean_ingredients_list, ingredient_index_dict,
                                                     ingredient_vector_len)
@@ -99,58 +103,37 @@ def get_ingredients_analysis(ingredients_text, ingredient_vector_len, ingredient
     preprocessed_data = encoded_ingredients.unsqueeze(0)  # Add batch dimension
     model_inputs = {model.get_inputs()[0].name: to_numpy(preprocessed_data)}
     model_outs = model.run(None, model_inputs)
+    skin_type_probs = model_outs[0][0]
+    skin_types = ['Combination', 'Dry', 'Normal', 'Oily', 'Sensitive']
+    predicted_skin_types = [label for prob, label in zip(skin_type_probs, skin_types) if prob > 0.5]
 
-    return model_outs
+    return predicted_skin_types
 
 
 def download_model_files():
-    # Download model
-    model_file_id = '1nChu3VhPRr4kqnI_2-2DymB8SK0u0dza'
-    gdrive_url = f'https://drive.google.com/uc?id={model_file_id}'
-    gdown.download(gdrive_url, 'model.onnx', quiet=False)
+    """Downloads from drive all the needed files to run the model
 
-    # Download ingredient dict and ingredients vector len
-    ingredient_dict_file_id = '17x_dEmUu3Vtqj-6CP0pl4ITxXa9vzqHn'
-    gdrive_url = f'https://drive.google.com/uc?id={ingredient_dict_file_id}'
-    gdown.download(gdrive_url, 'ingredient_dict.json', quiet=False)
-    ingredients_vector_len_file_id = '1OPd8sve1GEQcDIqP5Um3q7teK6eKNFDw'
-    gdrive_url = f'https://drive.google.com/uc?id={ingredients_vector_len_file_id}'
-    gdown.download(gdrive_url, 'ingredients_vector_len.json', quiet=False)
+    Returns:
+        The paths of the saved files
 
+    """
+    model_file_name = 'model.onnx'
+    ingredients_dict_file_name = 'ingredient_dict.json'
+    ingredients_vector_len_file_name = 'ingredients_vector_len.json'
 
-if __name__ == '__main__':
-    # download_model_files()
-    model = get_onnx_model('model.onnx')
+    if not os.path.isfile(model_file_name):
+        model_file_id = '1nChu3VhPRr4kqnI_2-2DymB8SK0u0dza'
+        gdrive_url = f'https://drive.google.com/uc?id={model_file_id}'
+        gdown.download(gdrive_url, model_file_name, quiet=False)
 
-    with open('ingredient_dict.json', 'r', encoding='utf-8') as f:
-        ingredient_dict = json.load(f)
+    if not os.path.isfile(ingredients_dict_file_name):
+        ingredient_dict_file_id = '17x_dEmUu3Vtqj-6CP0pl4ITxXa9vzqHn'
+        gdrive_url = f'https://drive.google.com/uc?id={ingredient_dict_file_id}'
+        gdown.download(gdrive_url, ingredients_dict_file_name, quiet=False)
 
-    with open('ingredients_vector_len.json', 'r', encoding='utf-8') as f:
-        ingredients_vector_len = json.load(f)["ingredients_vector_len"]
+    if not os.path.isfile(ingredients_vector_len_file_name):
+        ingredients_vector_len_file_id = '1OPd8sve1GEQcDIqP5Um3q7teK6eKNFDw'
+        gdrive_url = f'https://drive.google.com/uc?id={ingredients_vector_len_file_id}'
+        gdown.download(gdrive_url, ingredients_vector_len_file_name, quiet=False)
 
-    ingredients_txt = ("Water/Aqua/Eau, Glycerin, Niacinamide, Butylene Glycol, Ectoin, Sodium Hyaluronate, Hydrolyzed "
-                       "Sodium Hyaluronate, Sodium Acetylated Hyaluronate, Sodium Hyaluronate Crosspolymer, "
-                       "Acetyl Hexapeptide-8, Palmitoyl Tripeptide-1, Palmitoyl Tetrapeptide-7, Oligopeptide-2, "
-                       "Saccharide Isomerate, Camellia Sinensis (Green Tea) Leaf Extract, Camellia Sinensis (White "
-                       "Tea) Leaf Extract, Centella Asiatica Extract, Vitis Vinifera (Grape) Seed Extract, "
-                       "Sodium Carboxymethyl Beta-Glucan, Bakuchiol, Inonotus Obliquus (Mushroom) Extract, "
-                       "Tetrahydrocurcumin, Ceramide NP, Ceramide AP, Ceramide EOP, Phospholipids, Sphingolipids, "
-                       "Phytosphingosine, Colloidal Oatmeal, Bisabolol, Superoxide Dismutase, Terminalia "
-                       "Ferdinandiana (Kakadu Plum) Fruit Extract, Sodium PCA, Glutathione, Squalane, Caffeine, "
-                       "Panthenol, Butyrospermum Parkii (Shea) Butter, Aloe Barbadensis Leaf Juice, Arnica Montana "
-                       "Flower Extract, Acetyl Glutamine, Bifida Ferment Lysate, Chamomilla Recutita (Matricaria) "
-                       "Flower Extract, Withania Somnifera (Ashwagandha) Root Extract, Glycolic Acid, Mandelic Acid, "
-                       "Lactobionic Acid, Ethylhexylglycerin, Coco-Glucoside, Lauryl Glucoside, Decyl Glucoside, "
-                       "Polyglyceryl-10 Laurate, Diheptyl Succinate, Dimethicone, Pentylene Glycol, Sodium Lauroyl "
-                       "Lactylate, PVM/MA Decadiene Crosspolymer, VP/VA Copolymer, Xanthan Gum, Potassium Hydroxide, "
-                       "Polysorbate 20, Dimethicone Crosspolymer, Carbomer, Cholesterol, Capryloyl Glycerin/Sebacic "
-                       "Acid Copolymer, Leuconostoc/Radish Root Ferment Filtrate, Sodium Citrate, Citric Acid, "
-                       "Sodium Metasilicate, Gluconolactone, Tetrasodium Glutamate Diacetate, Caprylic/Capric "
-                       "Triglyceride, Jasminum Officinale (Jasmine) Flower/Leaf Extract, Vitis Vinifera (Grape) Fruit "
-                       "Extract, Eugenia Caryophyllus (Clove) Flower Extract, Lavandula Angustifolia (Lavender) "
-                       "Flower/Leaf/Stem Extract, Raspberry Ketone, Phenoxyethanol, Potassium Sorbate.")
-
-    skin_type_probs = get_ingredients_analysis(ingredients_txt, ingredients_vector_len, ingredient_dict, model)[0][0]
-    skin_types = ['Combination', 'Dry', 'Normal', 'Oily', 'Sensitive']
-    predicted_skin_types = [label for prob, label in zip(skin_type_probs, skin_types) if prob > 0.5]
-    print(predicted_skin_types)
+    return model_file_name, ingredients_dict_file_name, ingredients_vector_len_file_name
