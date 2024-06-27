@@ -3,7 +3,7 @@ from PIL.Image import Image
 from torchvision import transforms
 
 from utils.github import download_model_from_github
-from utils.load_model import get_onnx_model
+from utils.load_model import to_numpy, get_onnx_model
 
 github_model_url = "https://github.com/username/repository/raw/main/model.onnx"
 local_model_path = "model.onnx"
@@ -18,10 +18,6 @@ preprocess = transforms.Compose([
 ])
 
 ort_session = get_onnx_model(local_model_path)
-
-
-def to_numpy(tensor):
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 
 def get_skin_analysis(image: Image):
