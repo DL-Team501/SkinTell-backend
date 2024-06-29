@@ -8,7 +8,6 @@ from torchvision.models import ViT_B_16_Weights
 from utils.load_model import get_onnx_model
 from utils.configs import ROOT_PATH
 
-#
 output_file_path = os.path.join(ROOT_PATH, "models", "skin_type_by_face_image", "model.onnx")
 file_id = '1RVn2gQjFXhevSg8ZBY6SMe-7-rnWSiZH'
 model_url = f'https://drive.google.com/uc?id={file_id}'
