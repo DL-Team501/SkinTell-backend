@@ -1,6 +1,7 @@
 import io
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+import re
 
 from PIL import Image
 # from PIL.Image import Image
@@ -39,13 +40,43 @@ async def extract_text_from_image(file: UploadFile = File(...)):
         image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
         img_byte_arr = img_byte_arr.getvalue()
 
-        # Use easyocr to read text from the image bytes
         result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
 
-        # Combine the text results
-        text = " ".join(result)
+        # Convert OCR result to lowercase for case-insensitive search
+        result_lower = [text.lower() for text in result]
 
-        print(text)
+        # Find index of "ingredients" in the OCR result
+        ingredients_index = -1
+        for i, text in enumerate(result_lower):
+            if 'ingredients' in text:
+                ingredients_index = i
+                break
+
+        # If "Ingredients" is found
+        if ingredients_index != -1:
+            # Extract text from the same paragraph
+            text_after_ingredients = result[ingredients_index]
+
+            # Join text fragments in the same paragraph until a new paragraph is detected
+            paragraph_text = ''
+            for i in range(ingredients_index + 1, len(result)):
+                if re.search(r'^\s*$', result[i]):  # Check for new paragraph (empty line)
+                    break
+                paragraph_text += result[i] + ' '
+
+            # Strip trailing spaces
+            paragraph_text = paragraph_text.strip()
+
+            print(paragraph_text)  # Output the extracted paragraph text
+
+        # Use easyocr to read text from the image bytes
+        # result = reader.readtext(img_byte_arr, detail=0, paragraph=False)
+        #
+        # # Combine the text results
+        # print(result)
+        # text = " ".join(result)
+        #
+        # print(text)
         # class_idx, class_label = get_skin_analysis_by_ingredients(text)
 
         return JSONResponse(content={"class_id": 1, "class_label": "ala"})
