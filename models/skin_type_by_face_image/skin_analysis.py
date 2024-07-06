@@ -5,7 +5,7 @@ from PIL.Image import Image
 from torchvision import transforms
 from torchvision.models import ViT_B_16_Weights
 
-from utils.load_model import get_onnx_model
+from utils.load_model import get_onnx_model, to_numpy
 from utils.configs import ROOT_PATH
 
 output_file_path = os.path.join(ROOT_PATH, "models", "skin_type_by_face_image", "model.onnx")
@@ -15,9 +15,6 @@ model_url = f'https://drive.google.com/uc?id={file_id}'
 gdown.download(model_url, output_file_path)
 
 ort_session = get_onnx_model(output_file_path)
-
-def to_numpy(tensor):
-    return tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
 
 
 def get_skin_analysis(image: Image):
@@ -33,4 +30,4 @@ def get_skin_analysis(image: Image):
     label_map = dict(zip(range(0, len(classes)), classes))
     class_label = label_map.get(class_idx)
 
-    return  class_label
+    return class_label
