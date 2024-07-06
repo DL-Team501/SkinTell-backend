@@ -8,10 +8,12 @@ from PIL import Image
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from starlette.responses import JSONResponse
 import easyocr
+from fastapi import FastAPI, UploadFile, File
 
 from models.ingredients_analysis import get_ingredients_analysis
 # from models.skin_analysis import get_skin_analysis
 # from models.skin_analysis_by_ingredients import get_skin_analysis_by_ingredients
+from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
 
@@ -21,6 +23,16 @@ reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 @app.get("/")
 def read_root():
     return {"message": "SkinTell Backend Is Running!"}
+
+
+@app.post("/skin-analysis/")
+async def skin_analysis(file: UploadFile = File(...)):
+    # Read the image file
+    image: Image = Image.open(io.BytesIO(await file.read()))
+
+    class_label = get_skin_analysis(image)
+
+    return class_label
 
 
 @app.post("/ingredients-list")
@@ -37,7 +49,7 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 
         # Use easyocr to read text from the image bytes
         result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
-        
+
         # Combine the text results
         text = " ".join(result)
         print(text)
@@ -50,23 +62,15 @@ async def extract_text_from_image(file: UploadFile = File(...)):
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
-# @app.post("/skin-analysis/")
-# async def skin_analysis(file: UploadFile = File(...)):
-#     # Read the image file
-#     image: Image = Image.open(io.BytesIO(await file.read()))
-
-#     class_idx, class_label = get_skin_analysis(image)
-
-#     return JSONResponse(content={"class_id": class_idx, "class_label": class_label})
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8001)
+    uvicorn.run(app, host="127.0.0.1", port=8080)
 
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # Enable CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
