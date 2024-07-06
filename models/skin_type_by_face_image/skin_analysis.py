@@ -2,7 +2,6 @@ import os
 import numpy as np
 import gdown
 from PIL.Image import Image
-from torchvision import transforms
 from torchvision.models import ViT_B_16_Weights
 
 from utils.load_model import get_onnx_model, to_numpy
