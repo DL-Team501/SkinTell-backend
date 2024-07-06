@@ -1,18 +1,12 @@
 import io
 import uvicorn
-from fastapi.middleware.cors import CORSMiddleware
-
-from PIL import Image
-# from PIL.Image import Image
-
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from starlette.responses import JSONResponse
 import easyocr
-from fastapi import FastAPI, UploadFile, File
+from fastapi import HTTPException, FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from PIL import Image
+from starlette.responses import JSONResponse
 
 from models.ingredients_analysis import get_ingredients_analysis
-# from models.skin_analysis import get_skin_analysis
-# from models.skin_analysis_by_ingredients import get_skin_analysis_by_ingredients
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
