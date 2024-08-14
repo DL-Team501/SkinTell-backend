@@ -1,11 +1,8 @@
 import io
 import uvicorn
 import easyocr
-import json
-from pathlib import Path
 from fastapi import HTTPException, FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from PIL import Image
 from starlette.responses import JSONResponse
 
@@ -14,10 +11,8 @@ from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
 
-# OCR reader initialization
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
-# Path to the JSON file that will store user data
 USERS_FILE = Path("users.json")
 
 # Enable CORS
@@ -29,15 +24,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# User model for registration
 class User(BaseModel):
     username: str
     password: str
 
-# Root route for the app
+
 @app.get("/")
 def read_root():
     return {"message": "SkinTell Backend Is Running!"}
+
+
+@app.post("/skin-analysis/")
+async def skin_analysis(file: UploadFile = File(...)):
+    # Read the image file
+    image: Image = Image.open(io.BytesIO(await file.read()))
+
+    class_label = get_skin_analysis(image)
+
+    return class_label
+
+
+@app.post("/ingredients-list")
+async def extract_text_from_image(file: UploadFile = File(...)):
+    try:
+        # Read the file contents and convert the file contents to an image
+        image = Image.open(io.BytesIO(await file.read()))
+
+        image = image.convert("RGB")
+        # Convert the image back to bytes
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # Use easyocr to read text from the image bytes
+        result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
+
+        # Combine the text results
+        text = " ".join(result)
+        print(text)
+
+        predicted_skin_types = get_ingredients_analysis(text)
+        print(predicted_skin_types)
+
+        return JSONResponse(content=predicted_skin_types)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Register route to save user data in a list format
 @app.post("/register/")
@@ -87,46 +119,6 @@ async def login(user: User):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# Skin analysis route
-@app.post("/skin-analysis/")
-async def skin_analysis(file: UploadFile = File(...)):
-    try:
-        # Read the image file
-        image = Image.open(io.BytesIO(await file.read()))
-        class_label = get_skin_analysis(image)
-
-        return class_label
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-# Ingredients list extraction route
-@app.post("/ingredients-list")
-async def extract_text_from_image(file: UploadFile = File(...)):
-    try:
-        # Read the file contents and convert to image
-        image = Image.open(io.BytesIO(await file.read()))
-        image = image.convert("RGB")
-
-        # Convert the image back to bytes
-        img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG')
-        img_byte_arr = img_byte_arr.getvalue()
-
-        # Use easyocr to extract text
-        result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
-        text = " ".join(result)
-        print(text)
-
-        predicted_skin_types = get_ingredients_analysis(text)
-        print(predicted_skin_types)
-
-        return JSONResponse(content=predicted_skin_types)
-
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
-
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8001)
+
