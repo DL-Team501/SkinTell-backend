@@ -34,8 +34,10 @@ def read_root():
 async def skin_analysis(file: UploadFile = File(...)):
     image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
 
+    image_size = (128, 128)
+
     transform = transforms.Compose([
-        transforms.Resize((128, 128)),
+        transforms.Resize(image_size),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
     ])

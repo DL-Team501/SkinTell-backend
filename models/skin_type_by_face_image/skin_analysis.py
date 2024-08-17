@@ -23,4 +23,4 @@ def get_skin_analysis(image: Image):
     target_layer = loaded_model.features[-1]
     heatmap, predicted_class_idx = get_gradcam_heatmap(loaded_model, image, target_layer)
 
-    return generate_gradcam_image(image, heatmap, predicted_class_idx, classes)
+    return generate_gradcam_image((image.shape[2], image.shape[3]), heatmap, predicted_class_idx, classes)

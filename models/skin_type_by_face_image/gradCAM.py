@@ -42,21 +42,15 @@ def get_gradcam_heatmap(model, img, target_layer, class_idx=None):
 
     return heatmap.detach().cpu().numpy(), class_idx.item()
 
-def generate_gradcam_image(image, heatmap, predicted_class_idx, class_names, alpha=0.4):
-    img = np.array(image)
-    img = np.squeeze(img, axis=0)
-    img = np.transpose(img, (1, 2, 0))
-    img = np.zeros((128, 128, 3))
+def generate_gradcam_image(img_shape, heatmap, predicted_class_idx, class_names, alpha=0.4):
+    img = np.zeros((*img_shape, 3))
 
     heatmap = np.uint8(255 * heatmap)
-    heatmap = Image.fromarray(heatmap).resize((img.shape[1], img.shape[0]), Image.Resampling.LANCZOS)
+    heatmap = Image.fromarray(heatmap).resize((img_shape), Image.Resampling.LANCZOS)
     heatmap = np.array(heatmap)
 
     heatmap_colored = cm.jet(heatmap)
     heatmap_colored = (heatmap_colored[:, :, :3] * 255).astype(np.uint8)
-    #
-    # img = (img - np.min(img)) / (np.max(img) - np.min(img)) * 255
-    # img = img.astype(np.uint8)
 
     superimposed_img = heatmap_colored * alpha + img
     superimposed_img = np.uint8(superimposed_img)
