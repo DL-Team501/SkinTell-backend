@@ -1,11 +1,10 @@
 import io
 import uvicorn
-# import easyocr
+import easyocr
 from torchvision import transforms
 from fastapi import HTTPException, FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
-from fastapi.responses import StreamingResponse
 from starlette.responses import JSONResponse
 import base64
 
@@ -14,7 +13,7 @@ from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
 
-# reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
+reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
 # Enable CORS
 app.add_middleware(
@@ -53,33 +52,33 @@ async def skin_analysis(file: UploadFile = File(...)):
     })
 
 
-#
-# @app.post("/ingredients-list")
-# async def extract_text_from_image(file: UploadFile = File(...)):
-#     try:
-#         # Read the file contents and convert the file contents to an image
-#         image = Image.open(io.BytesIO(await file.read()))
-#
-#         image = image.convert("RGB")
-#         # Convert the image back to bytes
-#         img_byte_arr = io.BytesIO()
-#         image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
-#         img_byte_arr = img_byte_arr.getvalue()
-#
-#         # Use easyocr to read text from the image bytes
-#         result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
-#
-#         # Combine the text results
-#         text = " ".join(result)
-#         print(text)
-#
-#         predicted_skin_types = get_ingredients_analysis(text)
-#         print(predicted_skin_types)
-#
-#         return JSONResponse(content=predicted_skin_types)
-#     except Exception as e:
-#         print(e)
-#         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ingredients-list")
+async def extract_text_from_image(file: UploadFile = File(...)):
+    try:
+        # Read the file contents and convert the file contents to an image
+        image = Image.open(io.BytesIO(await file.read()))
+
+        image = image.convert("RGB")
+        # Convert the image back to bytes
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
+        img_byte_arr = img_byte_arr.getvalue()
+
+        # Use easyocr to read text from the image bytes
+        result = reader.readtext(img_byte_arr, detail=0, paragraph=True)
+
+        # Combine the text results
+        text = " ".join(result)
+        print(text)
+
+        predicted_skin_types = get_ingredients_analysis(text)
+        print(predicted_skin_types)
+
+        return JSONResponse(content=predicted_skin_types)
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
