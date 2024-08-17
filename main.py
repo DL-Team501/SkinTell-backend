@@ -1,10 +1,12 @@
 import io
 import uvicorn
 import easyocr
+from torchvision import transforms
 from fastapi import HTTPException, FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from starlette.responses import JSONResponse
+import base64
 
 from models.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
@@ -30,12 +32,27 @@ def read_root():
 
 @app.post("/skin-analysis/")
 async def skin_analysis(file: UploadFile = File(...)):
-    # Read the image file
-    image: Image = Image.open(io.BytesIO(await file.read()))
+    image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
 
-    class_label = get_skin_analysis(image)
+    image_size = (128, 128)
 
-    return class_label
+    transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+    ])
+
+    img = transform(image).unsqueeze(0).to('cpu')
+
+    img_io, predicted_class = get_skin_analysis(img)
+
+    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
+
+    return JSONResponse(content={
+        "predicted_class": predicted_class,
+        "heatmap": img_base64
+    })
+
 
 
 @app.post("/ingredients-list")
@@ -68,4 +85,3 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8001)
-
