@@ -159,3 +159,9 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 *.onnx
+
+# Ignore any file named mode.pth regardless of its location
+model.pth
+
+# Ignore the users.json file
+users.json
