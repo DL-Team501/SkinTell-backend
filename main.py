@@ -8,6 +8,8 @@ from starlette.responses import JSONResponse
 
 from models.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
+from pathlib import Path
+from pydantic import BaseModel
 
 app = FastAPI()
 
