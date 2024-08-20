@@ -1,8 +1,10 @@
+import base64
 import io
 import uvicorn
 import easyocr
 from fastapi import HTTPException, FastAPI, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
+from torchvision import transforms
 from PIL import Image
 from starlette.responses import JSONResponse
 from models.ingredients_analysis import get_ingredients_analysis
@@ -38,15 +40,29 @@ def read_root():
 
 @app.post("/skin-analysis/")
 async def skin_analysis(file: UploadFile = File(...), username: str = Header(None)):
-    # Read the image file
-    image: Image = Image.open(io.BytesIO(await file.read()))
+    image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
 
-    class_label = get_skin_analysis(image)
+    image_size = (128, 128)
+
+    transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+    ])
+
+    img = transform(image).unsqueeze(0).to('cpu')
+
+    img_io, predicted_class = get_skin_analysis(img)
+
+    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
 
     if username:
-        update_user_classification(username, class_label)
+        update_user_classification(username, predicted_class)
 
-    return class_label
+    return JSONResponse(content={
+        "predicted_class": predicted_class,
+        "heatmap": img_base64
+    })
 
 
 @app.post("/ingredients-list")

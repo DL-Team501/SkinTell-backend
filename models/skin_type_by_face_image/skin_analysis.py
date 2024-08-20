@@ -1,32 +1,26 @@
 import os
-import numpy as np
 import gdown
-from PIL.Image import Image
-from torchvision.models import ViT_B_16_Weights
-
-from utils.load_model import get_onnx_model, to_numpy
+import torch
+from PIL import Image
+from models.skin_type_by_face_image.SkinNet import SkinNet
+from models.skin_type_by_face_image.gradCAM import get_gradcam_heatmap, generate_gradcam_image
 from utils.configs import ROOT_PATH
 
-output_file_path = os.path.join(ROOT_PATH, "models", "skin_type_by_face_image", "model.onnx")
-file_id = '1RVn2gQjFXhevSg8ZBY6SMe-7-rnWSiZH'
+output_file_path = os.path.join(ROOT_PATH, "models", "skin_type_by_face_image", "model.pth")
+file_id = '1_LE9Xzt54ucAisH2li9CV1n0rTZJDZ9L'
 model_url = f'https://drive.google.com/uc?id={file_id}'
 
 gdown.download(model_url, output_file_path)
 
-ort_session = get_onnx_model(output_file_path)
-
 
 def get_skin_analysis(image: Image):
-    weights = ViT_B_16_Weights.DEFAULT
-    transform = weights.transforms()
-    image = transform(image).unsqueeze(0)
+    classes = ['Dark Circle', 'Dry Skin', 'Melasma', 'Oily Skin', 'pustule', 'skin-pore', 'wrinkle']
+    loaded_model = SkinNet(num_classes=len(classes))
+    loaded_model.load_state_dict(torch.load(output_file_path, map_location=torch.device('cpu')))
+    loaded_model.to('cpu')
+    loaded_model.eval()
 
-    ort_inputs = {ort_session.get_inputs()[0].name: to_numpy(image)}
-    ort_outs = ort_session.run(None, ort_inputs)
+    target_layer = loaded_model.features[-1]
+    heatmap, predicted_class_idx = get_gradcam_heatmap(loaded_model, image, target_layer)
 
-    class_idx = np.argmax(ort_outs[0])
-    classes = ['Dark Circle', 'Dry Skin', 'Melasma', 'Normal Skin', 'Oily Skin', 'pustule', 'skin-pore', 'wrinkle']
-    label_map = dict(zip(range(0, len(classes)), classes))
-    class_label = label_map.get(class_idx)
-
-    return class_label
+    return generate_gradcam_image((image.shape[2], image.shape[3]), heatmap, predicted_class_idx, classes)
