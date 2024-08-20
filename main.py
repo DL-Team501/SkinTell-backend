@@ -7,13 +7,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from starlette.responses import JSONResponse
 import base64
+import json
 
 from models.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
+from pathlib import Path
+from pydantic import BaseModel
 
 app = FastAPI()
 
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
+
+USERS_FILE = Path("users.json")
 
 # Enable CORS
 app.add_middleware(
@@ -24,6 +29,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+class User(BaseModel):
+    username: str
+    password: str
+
 
 @app.get("/")
 def read_root():
@@ -32,27 +41,12 @@ def read_root():
 
 @app.post("/skin-analysis/")
 async def skin_analysis(file: UploadFile = File(...)):
-    image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
+    # Read the image file
+    image: Image = Image.open(io.BytesIO(await file.read()))
 
-    image_size = (128, 128)
+    class_label = get_skin_analysis(image)
 
-    transform = transforms.Compose([
-        transforms.Resize(image_size),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
-    ])
-
-    img = transform(image).unsqueeze(0).to('cpu')
-
-    img_io, predicted_class = get_skin_analysis(img)
-
-    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
-
-    return JSONResponse(content={
-        "predicted_class": predicted_class,
-        "heatmap": img_base64
-    })
-
+    return class_label
 
 
 @app.post("/ingredients-list")
@@ -82,6 +76,56 @@ async def extract_text_from_image(file: UploadFile = File(...)):
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
+# Register route to save user data in a list format
+@app.post("/register/")
+async def register(user: User):
+    print("a")
+    try:
+        # Load the existing users from the file, if it exists
+        if USERS_FILE.exists():
+            print("b")
+            with USERS_FILE.open("r") as f:
+                users = json.load(f)
+        else:
+            users = []
+        print(users)
+        # Check if the username already exists in the list
+        for existing_user in users:
+            if existing_user['username'] == user.username:
+                raise HTTPException(status_code=400, detail="Username already exists")
+        print("dd")
+        # Add the new user to the users list
+        users.append({"username": user.username, "password": user.password})
+
+        # Save the updated users list back to the JSON file
+        with USERS_FILE.open("w") as f:
+            json.dump(users, f, indent=4)
+
+        return {"message": "User registered successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/login/")
+async def login(user: User):
+    try:
+        # Load the existing users from the file
+        if USERS_FILE.exists():
+            with USERS_FILE.open("r") as f:
+                users = json.load(f)
+        else:
+            raise HTTPException(status_code=400, detail="No users found")
+
+        # Check if the user exists in the users list
+        for existing_user in users:
+            if existing_user['username'] == user.username and existing_user['password'] == user.password:
+                return {"message": "Login successful"}
+
+        raise HTTPException(status_code=400, detail="Invalid username or password")
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8001)
+
