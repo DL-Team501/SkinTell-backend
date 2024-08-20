@@ -1,7 +1,7 @@
 import io
 import uvicorn
 import easyocr
-from fastapi import HTTPException, FastAPI, UploadFile, File
+from fastapi import HTTPException, FastAPI, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from starlette.responses import JSONResponse
@@ -10,7 +10,7 @@ from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 from pydantic import BaseModel
 
-from utils.users import get_users, write_users
+from utils.users import get_users, write_users, update_user_classification
 
 app = FastAPI()
 
@@ -37,11 +37,14 @@ def read_root():
 
 
 @app.post("/skin-analysis/")
-async def skin_analysis(file: UploadFile = File(...)):
+async def skin_analysis(file: UploadFile = File(...), username: str = Header(None)):
     # Read the image file
     image: Image = Image.open(io.BytesIO(await file.read()))
 
     class_label = get_skin_analysis(image)
+
+    if username:
+        update_user_classification(username, class_label)
 
     return class_label
 
@@ -95,7 +98,7 @@ async def login(user: User):
     # Check if the user exists in the users list
     for existing_user in users:
         if existing_user['username'] == user.username and existing_user['password'] == user.password:
-            return {"message": "Login successful"}
+            return {"message": "Login successful", "classification": existing_user.get('classification')}
 
     raise HTTPException(status_code=400, detail="Invalid username or password")
 
