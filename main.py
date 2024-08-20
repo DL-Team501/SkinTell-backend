@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
 from starlette.responses import JSONResponse
 import base64
+import json
 
 from models.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
@@ -78,19 +79,21 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 # Register route to save user data in a list format
 @app.post("/register/")
 async def register(user: User):
+    print("a")
     try:
         # Load the existing users from the file, if it exists
         if USERS_FILE.exists():
+            print("b")
             with USERS_FILE.open("r") as f:
                 users = json.load(f)
         else:
             users = []
-
+        print(users)
         # Check if the username already exists in the list
         for existing_user in users:
             if existing_user['username'] == user.username:
                 raise HTTPException(status_code=400, detail="Username already exists")
-
+        print("dd")
         # Add the new user to the users list
         users.append({"username": user.username, "password": user.password})
 
