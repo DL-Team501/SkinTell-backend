@@ -1,6 +1,6 @@
 import io
 import uvicorn
-import easyocr
+# import easyocr
 from torchvision import transforms
 from fastapi import HTTPException, FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
+# reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
 USERS_FILE = Path("users.json")
 
@@ -46,12 +46,25 @@ def read_root():
 
 @app.post("/skin-analysis/")
 async def skin_analysis(file: UploadFile = File(...)):
-    # Read the image file
-    image: Image = Image.open(io.BytesIO(await file.read()))
+    image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
+    image_size = (228, 228)
 
-    class_label = get_skin_analysis(image)
+    transform = transforms.Compose([
+        transforms.Resize(image_size),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+    ])
 
-    return class_label
+    img = transform(image).unsqueeze(0).to('cpu')
+
+    img_io, predicted_class = get_skin_analysis(img)
+
+    img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
+
+    return JSONResponse(content={
+        "predicted_class": predicted_class,
+        "heatmap": img_base64
+    })
 
 
 async def extract_ingredients_from_text(text):

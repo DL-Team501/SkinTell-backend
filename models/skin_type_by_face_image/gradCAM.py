@@ -5,7 +5,7 @@ from matplotlib import cm
 from io import BytesIO
 
 
-def get_gradcam_heatmap(model, img, target_layer, class_idx=None):
+def get_gradcam_heatmap(model, img, target_layer):
     model.eval()
     conv_output = None
     grad_output = None
@@ -22,8 +22,7 @@ def get_gradcam_heatmap(model, img, target_layer, class_idx=None):
     backward_hook = target_layer.register_backward_hook(backward_hook)
 
     output = model(img)
-    if class_idx is None:
-        class_idx = torch.argmax(output, dim=1)
+    class_idx = torch.argmax(output, dim=1)
 
     model.zero_grad()
     class_output = output[:, class_idx]
