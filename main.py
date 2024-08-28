@@ -13,7 +13,7 @@ import json
 
 # pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
-from models.ingredients_analysis import get_ingredients_analysis
+from models.skin_type_by_ingredients.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 from pathlib import Path
 from pydantic import BaseModel
@@ -32,6 +32,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 class User(BaseModel):
     username: str
@@ -88,14 +89,15 @@ async def clean_extracted_text(text):
 
     return text
 
+
 @app.post("/ingredients-list")
 async def extract_text_from_image(file: UploadFile = File(...)):
     try:
         print("HERE!")
         # Read the file contents and convert the file contents to an image
         image = Image.open(io.BytesIO(await file.read()))
-
         image = image.convert("RGB")
+
         # Convert the image back to bytes
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
@@ -143,6 +145,7 @@ async def extract_text_from_image(file: UploadFile = File(...)):
         print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # Register route to save user data in a list format
 @app.post("/register/")
 async def register(user: User):
@@ -173,6 +176,7 @@ async def register(user: User):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/login/")
 async def login(user: User):
     try:
@@ -192,6 +196,7 @@ async def login(user: User):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # @app.post("/ingredients-list")
 # async def extract_text_from_image(file: UploadFile = File(...)):
@@ -237,4 +242,3 @@ async def login(user: User):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="localhost", port=8000)
-
