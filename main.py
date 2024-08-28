@@ -8,7 +8,7 @@ from PIL import Image
 from starlette.responses import JSONResponse
 import base64
 
-from models.ingredients_analysis import get_ingredients_analysis
+from models.skin_type_by_ingredients.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
 
 app = FastAPI()
@@ -54,14 +54,13 @@ async def skin_analysis(file: UploadFile = File(...)):
     })
 
 
-
 @app.post("/ingredients-list")
 async def extract_text_from_image(file: UploadFile = File(...)):
     try:
         # Read the file contents and convert the file contents to an image
         image = Image.open(io.BytesIO(await file.read()))
-
         image = image.convert("RGB")
+
         # Convert the image back to bytes
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='JPEG')  # Save the image as JPEG or appropriate format
