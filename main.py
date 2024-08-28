@@ -1,6 +1,6 @@
 import io
 import uvicorn
-# import easyocr
+import easyocr
 from torchvision import transforms
 from fastapi import HTTPException, FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,7 +20,7 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
+reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
 
 USERS_FILE = Path("users.json")
 
