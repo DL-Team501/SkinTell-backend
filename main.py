@@ -1,9 +1,10 @@
+import base64
 import io
 import uvicorn
 import easyocr
-from torchvision import transforms
-from fastapi import HTTPException, FastAPI, UploadFile, File
+from fastapi import HTTPException, FastAPI, UploadFile, File, Header
 from fastapi.middleware.cors import CORSMiddleware
+from torchvision import transforms
 from PIL import Image
 # import pytesseract
 import re
@@ -15,14 +16,14 @@ import json
 
 from models.skin_type_by_ingredients.ingredients_analysis import get_ingredients_analysis
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
-from pathlib import Path
+
 from pydantic import BaseModel
+
+from utils.users import get_users, write_users, update_user_classification
 
 app = FastAPI()
 
 reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
-
-USERS_FILE = Path("users.json")
 
 # Enable CORS
 app.add_middleware(
@@ -45,7 +46,7 @@ def read_root():
 
 
 @app.post("/skin-analysis/")
-async def skin_analysis(file: UploadFile = File(...)):
+async def skin_analysis(file: UploadFile = File(...), username: str = Header(None)):
     image: Image = Image.open(io.BytesIO(await file.read())).convert('RGB')
     image_size = (228, 228)
 
@@ -60,6 +61,9 @@ async def skin_analysis(file: UploadFile = File(...)):
     img_io, predicted_class = get_skin_analysis(img)
 
     img_base64 = base64.b64encode(img_io.getvalue()).decode('utf-8')
+
+    if username:
+        update_user_classification(username, predicted_class)
 
     return JSONResponse(content={
         "predicted_class": predicted_class,
@@ -162,54 +166,35 @@ async def extract_text_from_image(file: UploadFile = File(...)):
 # Register route to save user data in a list format
 @app.post("/register/")
 async def register(user: User):
-    print("a")
-    try:
-        # Load the existing users from the file, if it exists
-        if USERS_FILE.exists():
-            print("b")
-            with USERS_FILE.open("r") as f:
-                users = json.load(f)
-        else:
-            users = []
-        print(users)
-        # Check if the username already exists in the list
-        for existing_user in users:
-            if existing_user['username'] == user.username:
-                raise HTTPException(status_code=400, detail="Username already exists")
-        print("dd")
-        # Add the new user to the users list
-        users.append({"username": user.username, "password": user.password})
+    users = get_users()
 
-        # Save the updated users list back to the JSON file
-        with USERS_FILE.open("w") as f:
-            json.dump(users, f, indent=4)
+    # Check if the username already exists in the list
+    for existing_user in users:
+        if existing_user['username'] == user.username:
+            raise HTTPException(status_code=400, detail="Username already exists")
 
-        return {"message": "User registered successfully"}
+    # Add the new user to the users list
+    users.append({"username": user.username, "password": user.password})
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    write_users(users)
+
+    return {"message": "User registered successfully"}
 
 
 @app.post("/login/")
 async def login(user: User):
-    try:
-        # Load the existing users from the file
-        if USERS_FILE.exists():
-            with USERS_FILE.open("r") as f:
-                users = json.load(f)
-        else:
-            raise HTTPException(status_code=400, detail="No users found")
+    users = get_users()
 
-        # Check if the user exists in the users list
-        for existing_user in users:
-            if existing_user['username'] == user.username and existing_user['password'] == user.password:
-                return {"message": "Login successful"}
+    # Check if the user exists in the users list
+    for existing_user in users:
+        if existing_user['username'] == user.username and existing_user['password'] == user.password:
+            return {"message": "Login successful", "classification": existing_user.get('classification')}
 
-        raise HTTPException(status_code=400, detail="Invalid username or password")
+    raise HTTPException(status_code=400, detail="Invalid username or password")
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
+if __name__ == "__main__":
+    uvicorn.run(app, host="localhost", port=8000)
 
 # @app.post("/ingredients-list")
 # async def extract_text_from_image(file: UploadFile = File(...)):
@@ -251,7 +236,3 @@ async def login(user: User):
 #     except Exception as e:
 #         print(e)
 #         raise HTTPException(status_code=500, detail=str(e))
-
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="localhost", port=8000)

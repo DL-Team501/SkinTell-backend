@@ -19,6 +19,7 @@ def get_skin_analysis(image: Image):
     loaded_model.load_state_dict(torch.load(output_file_path, map_location=torch.device('cpu')))
     loaded_model.to('cpu')
     loaded_model.eval()
+
     target_layer = loaded_model.features[-1]
     heatmap, predicted_class_idx = get_gradcam_heatmap(loaded_model, image, target_layer)
 
