@@ -20,8 +20,6 @@ from utils.users import get_users, write_users, update_user_classification
 
 app = FastAPI()
 
-# reader = easyocr.Reader(['en'])  # You can specify multiple languages if needed
-
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
