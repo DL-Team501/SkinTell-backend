@@ -4,6 +4,40 @@ import json
 from typing import List, Dict
 
 
+async def extract_ingredients_from_text(text):
+    match = re.search(r'(?i)ingredients(?:\s*\.\.\.|:)?\s*(.*?)(?=\n\n|$)', text, re.DOTALL)
+
+    if match:
+        # Extract the ingredients list text
+        ingredients_text = match.group(1).strip()
+
+        # Check if there is a period followed by a newline
+        match = re.search(r'\.\n', ingredients_text)
+
+        if match:
+            # If the match is found, split the text at the position of the first occurrence
+            split_position = match.start() + 1  # Position just after the period
+            ingredients_text = ingredients_text[:split_position].strip()  # Take the first part of the string up to the period
+
+        return ingredients_text.rstrip('.')
+    return "No ingredients found."
+
+
+async def clean_extracted_text(text):
+    text = text.replace('/', ',')
+    text = text.replace('!', '')
+    text = text.replace(';', ',')
+    text = text.replace('\n', ' ')
+
+    # Remove unwanted leading characters like '‘’# but preserve necessary punctuation
+    # This will remove '‘’# if they appear at the beginning of any word
+    text = re.sub(r"\s['‘’#]+", ' ', text)
+
+    # Remove any multiple spaces that may result from the cleanup
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
 def clean_ingredients(text: str) -> List[str]:
     """Cleans the ingredient text - lowercase, strip spaces and dots, etc...
 
