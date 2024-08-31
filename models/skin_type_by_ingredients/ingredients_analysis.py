@@ -1,44 +1,43 @@
+import os.path
 import re
 import torch
 import json
 from typing import List, Dict
+from utils.configs import ROOT_PATH
 
 
 async def extract_ingredients_from_text(text):
-    match = re.search(r'(?i)ingredients(?:\s*\.\.\.|:)?\s*(.*?)(?=\n\n|$)', text, re.DOTALL)
+    start_patterns = [
+        r"(?i)ingredients(?:\s*\.\.\.|:)?\s*",  # Matches "Ingredients:"
+        r"\bwater\b",  # Matches "Water"
+        r"\baqua\b"  # Matches "Aqua"
+    ]
+
+    # Combine all start patterns into one regex
+    start_regex = r"|".join(start_patterns)
+
+    # Try to find the start of the ingredient list
+    match = re.search(start_regex, text)
 
     if match:
-        # Extract the ingredients list text
-        ingredients_text = match.group(1).strip()
+        # Extract text starting after the matched pattern
+        ingredients_start = match.end()
+        ingredients_text = text[ingredients_start:]
 
-        # Check if there is a period followed by a newline
-        match = re.search(r'\.\n', ingredients_text)
+        # Optionally, look for an end pattern to stop the extraction
+        end_pattern = r">"  # Modify this as needed
+        end_match = re.search(end_pattern, ingredients_text)
 
-        if match:
-            # If the match is found, split the text at the position of the first occurrence
-            split_position = match.start() + 1  # Position just after the period
-            ingredients_text = ingredients_text[:split_position].strip()  # Take the first part of the string up to the period
+        if end_match:
+            ingredients_text = ingredients_text[:end_match.start()]
 
-        return ingredients_text.rstrip('.')
-    return "No ingredients found."
+        # Clean up the ingredients text
+        ingredients_text = ingredients_text.replace("\n", " ").strip()
+
+        return ingredients_text
 
 
 async def clean_extracted_text(text):
-    text = text.replace('/', ',')
-    text = text.replace('!', '')
-    text = text.replace(';', ',')
-    text = text.replace('\n', ' ')
-
-    # Remove unwanted leading characters like '‘’# but preserve necessary punctuation
-    # This will remove '‘’# if they appear at the beginning of any word
-    text = re.sub(r"\s['‘’#]+", ' ', text)
-
-    # Remove any multiple spaces that may result from the cleanup
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
-
-def clean_ingredients(text: str) -> List[str]:
     """Cleans the ingredient text - lowercase, strip spaces and dots, etc...
 
     Args:
@@ -49,12 +48,17 @@ def clean_ingredients(text: str) -> List[str]:
 
     """
     text = text.lower()
-    text = re.sub(r'\s+', ' ', text).strip()
-    ingredient_list = [ingredient.strip() for ingredient in text.split(', ')]
-    ingredient_list = [re.sub(r'^-.*:', '', ing).strip().lower() for ing in ingredient_list]
-    ingredient_list = [re.sub(r'[^a-zA-Z0-9\s]', '', ing).strip() for ing in ingredient_list]
+    # Remove any trailing or leading whitespace
+    ingredients_text = text.strip()
 
-    return ingredient_list
+    # Split ingredients based on common delimiters (comma, period, semicolon)
+    # and clean up extra spaces
+    ingredients = re.split(r'[,.:;\n]+', ingredients_text)
+
+    # Strip extra whitespace from each ingredient and filter out empty strings
+    ingredients = [ingredient.strip() for ingredient in ingredients if ingredient.strip()]
+
+    return ingredients
 
 
 def create_ingredients_vector(ingredient_list: List[str], ingredient_index_dict: Dict[str, int], vector_length: int) \
@@ -82,27 +86,28 @@ def create_ingredients_vector(ingredient_list: List[str], ingredient_index_dict:
     return torch.tensor(ingredient_list_indexes, dtype=torch.float32)
 
 
-def get_ingredients_analysis(ingredients_text):
+def get_ingredients_analysis(ingredients_list):
     """Predicts skin type suitability based on products ingredients text
 
     Args:
-        ingredients_text: ingredients list extracted from some skincare product
+        ingredients_list: ingredients list extracted from some skincare product
 
     Returns:
         The predicted suitable skit types
 
     """
-    model = torch.jit.load('ingredients_classifier.pt')
+    model = torch.jit.load(os.path.join(ROOT_PATH, 'models', 'skin_type_by_ingredients', 'ingredients_classifier.pt'))
     model.eval()
 
-    with open('ingredient_index_dict.json', 'r', encoding='utf-8') as f:
+    with open(os.path.join(ROOT_PATH, 'models', 'skin_type_by_ingredients', 'ingredient_index_dict.json'), 'r',
+              encoding='utf-8') as f:
         ingredient_index_dict = json.load(f)
 
-    with open('ingredients_vector_len.json', 'r', encoding='utf-8') as f:
+    with open(os.path.join(ROOT_PATH, 'models', 'skin_type_by_ingredients', 'ingredients_vector_len.json'), 'r',
+              encoding='utf-8') as f:
         ingredient_vector_len = json.load(f)["ingredients_vector_len"]
 
-    clean_ingredients_list = clean_ingredients(ingredients_text)
-    indexed_ingredients = create_ingredients_vector(clean_ingredients_list, ingredient_index_dict,
+    indexed_ingredients = create_ingredients_vector(ingredients_list, ingredient_index_dict,
                                                     ingredient_vector_len)
     preprocessed_data = indexed_ingredients.long().unsqueeze(0)  # Add batch dimension
     output = model(preprocessed_data)
