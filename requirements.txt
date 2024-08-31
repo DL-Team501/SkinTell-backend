@@ -12,3 +12,4 @@ torch~=2.3.1
 starlette~=0.37.2
 gdown~=5.2.0
 onnx~=1.16.1
+matplotlib==3.9.2
