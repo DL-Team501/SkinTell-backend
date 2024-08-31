@@ -1,4 +1,3 @@
-import base64
 import io
 import uvicorn
 from fastapi import HTTPException, FastAPI, UploadFile, File, Header
@@ -6,10 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from torchvision import transforms
 from PIL import Image
 import pytesseract
-import re
 from starlette.responses import JSONResponse
 import base64
-import json
 
 from models.skin_type_by_ingredients.ingredients_analysis import get_ingredients_analysis, extract_ingredients_from_text, clean_extracted_text
 from models.skin_type_by_face_image.skin_analysis import get_skin_analysis
@@ -71,16 +68,22 @@ async def extract_text_from_image(file: UploadFile = File(...)):
     try:
         # Read the file contents and convert the file contents to an image
         image = Image.open(io.BytesIO(await file.read()))
-
         image = image.convert("RGB")
 
         extracted_text = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
-        # Extract the list of ingredients
-        ingredients = await extract_ingredients_from_text(extracted_text)
-        cleaned_text = await clean_extracted_text(ingredients)
-        print(cleaned_text)
+        print(f"Extracted text: {extracted_text}")
 
-        predicted_skin_types = get_ingredients_analysis(cleaned_text)
+        ingredients = await extract_ingredients_from_text(extracted_text)
+        print(f"ingredients: {ingredients}")
+
+        if ingredients is None:
+            raise HTTPException(status_code=422,
+                                detail="No recognizable ingredients were found. Please provide a clearer image.")
+
+        ingredients_list = await clean_extracted_text(ingredients)
+        print(f"ingredients_list: {ingredients_list}")
+
+        predicted_skin_types = get_ingredients_analysis(ingredients_list)
         print(predicted_skin_types)
 
         return JSONResponse(content=predicted_skin_types)
