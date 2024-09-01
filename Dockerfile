@@ -9,9 +9,15 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr \
     libtesseract-dev \
     libleptonica-dev \
+    wget \
     && apt-get clean
 
-# Copy the requirements file into the container at /app
+# Ensure the tessdata directory exists and download the English language data
+RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata/ && \
+    wget -O /usr/share/tesseract-ocr/4.00/tessdata/eng.traineddata \
+    https://github.com/tesseract-ocr/tessdata/raw/master/eng.traineddata
+
+# Copy the requirements file into the container
 COPY requirements.txt .
 
 # Install Python dependencies
@@ -20,7 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application code
 COPY . .
 
-# Ensure Tesseract is in the PATH
+# Set the TESSDATA_PREFIX environment variable
 ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata/
 ENV PATH="${PATH}:/usr/bin"
 
