@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 # Ensure the tessdata directory exists and download the English language data
 RUN mkdir -p /usr/share/tesseract-ocr/4.00/tessdata/ && \
     wget -O /usr/share/tesseract-ocr/4.00/tessdata/eng.traineddata \
-    https://github.com/tesseract-ocr/tessdata/raw/master/eng.traineddata
+    https://github.com/tesseract-ocr/tessdata_best/raw/main/eng.traineddata
 
 # Copy the requirements file into the container
 COPY requirements.txt .
