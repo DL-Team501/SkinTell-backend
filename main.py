@@ -65,31 +65,27 @@ async def skin_analysis(file: UploadFile = File(...), username: str = Header(Non
 
 @app.post("/ingredients-list")
 async def extract_text_from_image(file: UploadFile = File(...)):
-    try:
-        # Read the file contents and convert the file contents to an image
-        image = Image.open(io.BytesIO(await file.read()))
-        image = image.convert("RGB")
+    # Read the file contents and convert the file contents to an image
+    image = Image.open(io.BytesIO(await file.read()))
+    image = image.convert("RGB")
 
-        extracted_text = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
-        print(f"Extracted text: {extracted_text}")
+    extracted_text = pytesseract.image_to_string(image, lang='eng', config='--psm 6')
+    print(f"Extracted text: {extracted_text}")
 
-        ingredients = await extract_ingredients_from_text(extracted_text)
-        print(f"ingredients: {ingredients}")
+    ingredients = await extract_ingredients_from_text(extracted_text)
+    print(f"ingredients: {ingredients}")
 
-        if ingredients is None:
-            raise HTTPException(status_code=422,
-                                detail="No recognizable ingredients were found. Please provide a clearer image.")
+    if ingredients is None:
+        raise HTTPException(status_code=422,
+                            detail="No recognizable ingredients were found. Please provide a clearer image.")
 
-        ingredients_list = await clean_extracted_text(ingredients)
-        print(f"ingredients_list: {ingredients_list}")
+    ingredients_list = await clean_extracted_text(ingredients)
+    print(f"ingredients_list: {ingredients_list}")
 
-        predicted_skin_types = get_ingredients_analysis(ingredients_list)
-        print(predicted_skin_types)
+    predicted_skin_types = get_ingredients_analysis(ingredients_list)
+    print(predicted_skin_types)
 
-        return JSONResponse(content=predicted_skin_types)
-    except Exception as e:
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
+    return JSONResponse(content=predicted_skin_types)
 
 
 # Register route to save user data in a list format
